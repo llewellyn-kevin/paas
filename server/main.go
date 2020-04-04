@@ -48,7 +48,7 @@ func main() {
 func statusCheck(c *gin.Context) {
   log.Println(c.MustGet("authorization"))
 
-  if(c.MustGet("authorization").(string) == AUTHENTICATED) {
+  if(c.MustGet("authorization").(string) == Authenticated) {
     user := c.MustGet("user").(string)
     c.String(http.StatusOK, fmt.Sprintf("Hello %s, How are you? I am well.", user))
   } else {

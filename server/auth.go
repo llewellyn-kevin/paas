@@ -2,36 +2,70 @@ package main
 
 import(
   "fmt"
-  "log"
+  "io/ioutil"
   "net/http"
+  "time"
 
-  // "github.com/dgrijalva/jwt-go"
+  "github.com/dgrijalva/jwt-go"
   "github.com/gin-gonic/gin"
   "github.com/gomodule/redigo/redis"
 )
 
 const(
-  AUTHENTICATED = "auth"
-  ANONYMOUS = "anom"
+  ServiceName = "PaaS"
+  TokenLifetime = 360
+
+  Authenticated = "auth"
+  Anonymous = "anoma"
 )
+
+func GetSecret(method string) ([]byte, error) {
+  return ioutil.ReadFile(fmt.Sprintf("jwt_secret.%s", method))
+}
+
+type AuthClaims struct {
+  Username string `json:"usr"`
+  jwt.StandardClaims
+}
+
+func GetAuthClaims(user string) AuthClaims {
+  now := time.Now().Unix()
+  return AuthClaims{
+    user,
+    jwt.StandardClaims{
+      Issuer: ServiceName,
+      IssuedAt: now,
+      ExpiresAt: now + TokenLifetime,
+    },
+  }
+}
 
 func Authorize() gin.HandlerFunc {
   return func(c *gin.Context) {
+
     cookie, err := c.Cookie("auth_jwt")
 
     if err != nil {
-      c.Set("authorization", ANONYMOUS)
+      c.Set("authorization", Anonymous)
       c.Set("user", "")
     } else {
-      c.Set("authorization", AUTHENTICATED)
+      c.Set("authorization", Authenticated)
       c.Set("user", cookie)
     }
   }
 }
 
 func Login(c *gin.Context, user string) {
-  log.Println("setting cookie foe user")
-  c.SetCookie("auth_jwt", user, 3600, "/", "127.0.0.1", http.SameSiteNoneMode, false, false)
+  token := jwt.NewWithClaims(jwt.SigningMethodHS256, GetAuthClaims(user))
+  secret, err := GetSecret("hmac")
+  if err != nil {
+    panic(err)
+  }
+  signedTokenString, err := token.SignedString(secret)
+  if err != nil {
+    panic(err)
+  }
+  c.SetCookie("auth_jwt", signedTokenString, 3600, "/", "127.0.0.1", http.SameSiteNoneMode, false, false)
 }
 
 func IsValidAuth(c *gin.Context, store redis.Conn, user, pass string) bool {
