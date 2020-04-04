@@ -1,11 +1,9 @@
 package main
 
 type User struct {
-	Id 			string
-	FirstName 	string
-	LastName 	string
-	Email 		string
-	Password 	string
-	PubKey		string
-	Accounts	[]string
+  FirstName	string    `form:"firstname"`
+  LastName	string    `form:"lastname"`
+  Email		  string    `form:"email"`
+  Password	string    `form:"pass"`
+  PubKey		string    `form:"pubkey"`
 }
