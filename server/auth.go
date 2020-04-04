@@ -42,15 +42,28 @@ func GetAuthClaims(user string) AuthClaims {
 
 func Authorize() gin.HandlerFunc {
   return func(c *gin.Context) {
-
     cookie, err := c.Cookie("auth_jwt")
 
     if err != nil {
       c.Set("authorization", Anonymous)
       c.Set("user", "")
     } else {
-      c.Set("authorization", Authenticated)
-      c.Set("user", cookie)
+      token, err := jwt.ParseWithClaims(cookie, &AuthClaims{}, func(token *jwt.Token) (interface{}, error) {
+        return GetSecret("hmac")
+      })
+
+      if err != nil { // Token is expired
+        c.Set("authorization", Anonymous)
+        c.Set("user", "")
+      }
+
+      if claims, ok := token.Claims.(*AuthClaims); ok && token.Valid { // Good token
+        c.Set("authorization", Authenticated)
+        c.Set("user", claims.Username)
+      } else { // Tokens claims do not validate
+        c.Set("authorization", Anonymous)
+        c.Set("user", "")
+      }
     }
   }
 }
