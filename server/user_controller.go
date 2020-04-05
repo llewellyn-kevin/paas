@@ -32,7 +32,13 @@ func (u UserController) Create(c *gin.Context) {
 
 // Show returns information on the requested user.
 func (u UserController) Show(c *gin.Context) {
-
+  auth, _ := c.Get("authorization")
+  if(auth != Authenticated) {
+    c.String(http.StatusUnauthorized, "Not authorized for that action.")
+  } else {
+    user, _ := c.Get("user")
+    c.String(http.StatusOK, fmt.Sprintf("Current user is: %s", user))
+  }
 }
 
 // Update changes the information for the given user in persistent data.
