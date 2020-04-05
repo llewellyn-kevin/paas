@@ -1,6 +1,7 @@
 package main
 
 import(
+  "log"
   "fmt"
   "io/ioutil"
   "net/http"
@@ -12,9 +13,17 @@ import(
 )
 
 const(
+  // The name of the cookie on the client's device.
   CookieName = "auth_jwt"
+  CookiePath = "/"
+  CookieDomain = "127.0.0.1"
+  // The name of the service, given in the JWT.
   ServiceName = "PaaS"
-  TokenLifetime = 360
+  // How long, in seconds, a token will stay valid.
+  TokenLifetime = 60
+  // If a request is made within this many seconds of the token expiring, a new
+  // token will automatically be generated and sent.
+  TokenRefreshWindow = 20
 
   // Codes used by the Authorization middleware to help controller method
   // handlers identify current authentication status of the client.
@@ -57,6 +66,7 @@ func GetAuthClaims(user string) AuthClaims {
 // on the validity of the given token. 
 func Authorize() gin.HandlerFunc {
   return func(c *gin.Context) {
+    now := time.Now().Unix()
     cookie, err := c.Cookie(CookieName)
 
     if err != nil { // No token has been set
@@ -70,6 +80,13 @@ func Authorize() gin.HandlerFunc {
       }
 
       if claims, ok := token.Claims.(*AuthClaims); ok && token.Valid { // Good token
+        log.Println(fmt.Sprintf("Token expires in %d s", claims.ExpiresAt - now))
+        if claims.ExpiresAt - now <= TokenRefreshWindow { // Issue new token
+          log.Println("need to make a new token")
+          Logout(c)
+          Login(c, claims.Username)
+        }
+
         setAuthorized(c, claims.Username)
       } else { // Tokens claims could not be validated
         setAnonymous(c)
@@ -100,15 +117,24 @@ func setAuthorized(c *gin.Context, username string) {
 // the user has supplied a valid password.
 func Login(c *gin.Context, user string) {
   token := jwt.NewWithClaims(jwt.SigningMethodHS256, GetAuthClaims(user))
+
   secret, err := GetSecret("hmac")
-  if err != nil {
+  if err != nil { // Secret file is not found
     panic(err)
   }
+
   signedTokenString, err := token.SignedString(secret)
   if err != nil {
     panic(err)
   }
-  c.SetCookie(CookieName, signedTokenString, 3600, "/", "127.0.0.1", http.SameSiteNoneMode, false, false)
+
+  log.Println("Should create cookie now")
+  c.SetCookie(CookieName, signedTokenString, TokenLifetime, CookiePath, CookieDomain, http.SameSiteNoneMode, false, false)
+}
+
+// Replaces the JWT on the client's device with an empty cookie.
+func Logout(c *gin.Context) {
+  c.SetCookie(CookieName, "", TokenLifetime, CookiePath, CookieDomain, http.SameSiteNoneMode, false, false)
 }
 
 // IsValidAuth takes a database connection, username, and password; and

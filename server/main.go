@@ -63,7 +63,6 @@ func createUser(c *gin.Context) {
     log.Println(newUser.LastName)
     log.Println(newUser.Email)
     log.Println(newUser.Password)
-    log.Println(newUser.PubKey)
   }
 
   exists, err := redis.Bool(store.Do("EXISTS", fmt.Sprintf("user:%s", newUser.Email)))
@@ -78,7 +77,6 @@ func createUser(c *gin.Context) {
     store.Do("HSET", fmt.Sprintf("user:%s", newUser.Email), "firstname", newUser.FirstName)
     store.Do("HSET", fmt.Sprintf("user:%s", newUser.Email), "lastname", newUser.LastName)
     store.Do("HSET", fmt.Sprintf("user:%s", newUser.Email), "password", newUser.Password)
-    store.Do("HSET", fmt.Sprintf("user:%s", newUser.Email), "pubkey", newUser.PubKey)
 
     // Set cookie to track user
     Login(c, newUser.Email)
