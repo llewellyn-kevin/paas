@@ -22,6 +22,7 @@ func main() {
 
   router := gin.Default()
   router.Use(Authorize())
+  router.Use(Hasher())
 
   userController := UserController{}
   accountController := AccountController{}

@@ -1,9 +1,10 @@
 package main
 
 import(
-  "log"
+  "crypto/sha256"
   "fmt"
   "io/ioutil"
+  "log"
   "net/http"
   "time"
 
@@ -91,6 +92,15 @@ func Authorize() gin.HandlerFunc {
       } else { // Tokens claims could not be validated
         setAnonymous(c)
       }
+    }
+  }
+}
+
+// Hasher looks for any passwords in the query string and hashes them. 
+func Hasher() gin.HandlerFunc {
+  return func(c *gin.Context) {
+    if c.Query("password") != "" {
+      c.Set("password", sha256.Sum256([]byte(c.Query("password"))))
     }
   }
 }

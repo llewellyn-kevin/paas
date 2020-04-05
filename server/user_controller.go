@@ -2,7 +2,6 @@ package main
 
 import(
   "fmt"
-  "log"
   "net/http"
 
   "github.com/gin-gonic/gin"
@@ -14,14 +13,15 @@ type UserController struct {}
 // to persistent data.
 func (u UserController) Create(c *gin.Context) {
   var newUser User
-  if c.ShouldBindQuery(&newUser) != nil {
-    log.Println(newUser.FirstName)
-    log.Println(newUser.LastName)
-    log.Println(newUser.Email)
-    log.Println(newUser.Password)
-  }
+  newUser.FirstName = c.Query("firstname")
+  newUser.LastName = c.Query("lastname")
+  newUser.Email = c.Query("email")
+  pass, _ := c.Get("password")
+  newUser.Password = fmt.Sprintf("%v", pass)
 
-  if newUser.DoesExist() {
+  if !newUser.IsValid() {
+    c.String(http.StatusBadRequest, "Invalid input")
+  } else if newUser.DoesExist() {
     c.String(http.StatusConflict, fmt.Sprintf("User with email %s already exists", newUser.Email))
   } else {
     newUser.Save()
@@ -49,9 +49,9 @@ func (u UserController) Destroy(c *gin.Context) {
 // onto the authentication service to generate a response
 func (u UserController) Login(c *gin.Context) {
   username := c.Query("username")
-  password := c.Query("password")
+  password, exists := c.Get("password")
 
-  if IsValidAuth(c, store, username, password) {
+  if IsValidAuth(c, store, username, fmt.Sprintf("%v", password)) && exists {
     Login(c, username)
     c.String(http.StatusOK, "Logged in")
   } else {
